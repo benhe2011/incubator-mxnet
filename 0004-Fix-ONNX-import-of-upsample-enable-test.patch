@@ -1,0 +1,87 @@
+From 67283474b6e435816b047581c52618a5fd64722c Mon Sep 17 00:00:00 2001
+From: Vandana Kannan <vandana268@gmail.com>
+Date: Mon, 28 Jan 2019 16:48:06 -0800
+Subject: [PATCH 04/11] Fix ONNX import of upsample, enable test
+
+---
+ .../contrib/onnx/mx2onnx/_op_translations.py  |  5 +++++
+ .../contrib/onnx/onnx2mx/_import_helper.py    |  2 +-
+ .../contrib/onnx/onnx2mx/_op_translations.py  | 22 ++++++++++++++-----
+ tests/python-pytest/onnx/test_cases.py        |  3 ++-
+ 4 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py b/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py
+index 895c5abb7..edb174a9f 100644
+--- a/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py
++++ b/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py
+@@ -2059,6 +2059,11 @@ def convert_upsample(node, **kwargs):
+     sample_type = attrs.get('sample_type', 'nearest')
+     sample_type = 'linear' if sample_type == 'bilinear' else sample_type
+     scale = convert_string_to_list(attrs.get('scale'))
++    scaleh = scalew = float(scale[0])
++    if len(scale) > 1:
++        scaleh = float(scale[0])
++        scalew = float(scale[1])
++    scale = [1.0, 1.0, scaleh, scalew]
+ 
+     node = onnx.helper.make_node(
+         'Upsample',
+diff --git a/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py b/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py
+index 4ef15c10d..939027b12 100644
+--- a/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py
++++ b/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py
+@@ -148,5 +148,5 @@ _convert_map = {
+     'SpaceToDepth'      : spacetodepth,
+     'Hardmax'           : hardmax,
+     'LpNormalization'   : lpnormalization,
+-    'UpSampling'        : upsampling
++    'Upsample'          : upsampling
+ }
+diff --git a/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py b/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py
+index af9b7f82f..1f46f9354 100644
+--- a/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py
++++ b/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py
+@@ -781,10 +781,20 @@ def lpnormalization(attrs, inputs, proto_obj):
+ 
+ def upsampling(attrs, inputs, proto_obj):
+     """Rearranges blocks of spatial data into depth."""
+-    new_attrs = translation_utils._fix_attribute_names(attrs, {'scales':'scale',
+-                                                               'mode':'sample_type'})
++    new_attrs = translation_utils._fix_attribute_names(attrs, {'scales': 'scale',
++                                                               'mode': 'sample_type'})
+     sample_type = new_attrs.get('sample_type', 'nearest')
+-    if sample_type == 'linear':
+-        new_attrs.update(sample_type=sample_type)
+-
+-    return "UpSampling", new_attrs, inputs
++    if sample_type != 'nearest':
++        raise NotImplementedError("Operator {} in ONNX supports 'linear' mode "
++                                  "for linear, bilinear, trilinear etc. There is no "
++                                  "way to distinguish these so far. Therefore, supporting "
++                                  "import of only nearest neighbor upsampling for now. "
++                                  "https://github.com/onnx/onnx/issues/1774. "
++                                  "Use contrib.BilinearResize2D for bilinear mode."
++                                  .format('UpSample'))
++
++    scale = tuple(new_attrs.get('scale'))[2:]
++    scale = tuple([int(s) for s in scale])
++    mx_op = symbol.UpSampling(inputs[0], scale=scale, sample_type=sample_type)
++
++    return mx_op, new_attrs, inputs
+diff --git a/tests/python-pytest/onnx/test_cases.py b/tests/python-pytest/onnx/test_cases.py
+index 89b60d15e..90136bb01 100644
+--- a/tests/python-pytest/onnx/test_cases.py
++++ b/tests/python-pytest/onnx/test_cases.py
+@@ -78,7 +78,8 @@ IMPLEMENTED_OPERATORS_TEST = {
+              'test_max_',
+              'test_softplus',
+              'test_reduce_',
+-             'test_split_equal'
++             'test_split_equal',
++             'test_upsample_n'
+              ],
+     'import': ['test_gather',
+                'test_softsign',
+-- 
+2.20.1 (Apple Git-117)
+

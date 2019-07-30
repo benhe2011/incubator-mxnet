@@ -1,0 +1,84 @@
+From 6d1cce4f2c8991633451542eddd7e150670963c7 Mon Sep 17 00:00:00 2001
+From: Vandana Kannan <vandana268@gmail.com>
+Date: Wed, 9 Jan 2019 09:44:59 -0800
+Subject: [PATCH 03/11] ONNX import/export: Upsample
+
+---
+ .../contrib/onnx/mx2onnx/_op_translations.py  | 22 +++++++++++++++++++
+ .../contrib/onnx/onnx2mx/_import_helper.py    |  5 +++--
+ .../contrib/onnx/onnx2mx/_op_translations.py  | 11 ++++++++++
+ 3 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py b/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py
+index f9d170d81..895c5abb7 100644
+--- a/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py
++++ b/python/mxnet/contrib/onnx/mx2onnx/_op_translations.py
+@@ -2047,3 +2047,25 @@ def convert_broadcast_to(node, **kwargs):
+     )
+ 
+     return [tensor_node, expand_node]
++
++
++@mx_op.register("UpSampling")
++def convert_upsample(node, **kwargs):
++    """Map MXNet's UpSampling operator attributes to onnx's Upsample operator
++    and return the created node.
++    """
++    name, input_nodes, attrs = get_inputs(node, kwargs)
++
++    sample_type = attrs.get('sample_type', 'nearest')
++    sample_type = 'linear' if sample_type == 'bilinear' else sample_type
++    scale = convert_string_to_list(attrs.get('scale'))
++
++    node = onnx.helper.make_node(
++        'Upsample',
++        input_nodes,
++        [name],
++        scales=scale,
++        mode=sample_type,
++        name=name
++    )
++    return [node]
+diff --git a/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py b/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py
+index cf95bfef0..4ef15c10d 100644
+--- a/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py
++++ b/python/mxnet/contrib/onnx/onnx2mx/_import_helper.py
+@@ -23,7 +23,7 @@ from ._op_translations import add, subtract, multiply, divide, absolute, negativ
+ from ._op_translations import tanh, arccos, arcsin, arctan, _cos, _sin, _tan
+ from ._op_translations import softplus, shape, gather, lp_pooling, size
+ from ._op_translations import ceil, floor, hardsigmoid, global_lppooling
+-from ._op_translations import concat, hardmax
++from ._op_translations import concat, hardmax, upsampling
+ from ._op_translations import leaky_relu, _elu, _prelu, _selu, softmax, fully_connected
+ from ._op_translations import global_avgpooling, global_maxpooling, linalg_gemm
+ from ._op_translations import sigmoid, pad, relu, matrix_multiplication, batch_norm
+@@ -147,5 +147,6 @@ _convert_map = {
+     'DepthToSpace'      : depthtospace,
+     'SpaceToDepth'      : spacetodepth,
+     'Hardmax'           : hardmax,
+-    'LpNormalization'   : lpnormalization
++    'LpNormalization'   : lpnormalization,
++    'UpSampling'        : upsampling
+ }
+diff --git a/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py b/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py
+index a7cef7674..af9b7f82f 100644
+--- a/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py
++++ b/python/mxnet/contrib/onnx/onnx2mx/_op_translations.py
+@@ -777,3 +777,14 @@ def lpnormalization(attrs, inputs, proto_obj):
+     axis = int(attrs.get("axis", -1))
+     new_attrs.update(axis=axis)
+     return 'norm', new_attrs, inputs
++
++
++def upsampling(attrs, inputs, proto_obj):
++    """Rearranges blocks of spatial data into depth."""
++    new_attrs = translation_utils._fix_attribute_names(attrs, {'scales':'scale',
++                                                               'mode':'sample_type'})
++    sample_type = new_attrs.get('sample_type', 'nearest')
++    if sample_type == 'linear':
++        new_attrs.update(sample_type=sample_type)
++
++    return "UpSampling", new_attrs, inputs
+-- 
+2.20.1 (Apple Git-117)
+

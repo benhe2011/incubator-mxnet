@@ -1,0 +1,40 @@
+From 9fb8d1cff51d096c9feb948c962ac3704440c56c Mon Sep 17 00:00:00 2001
+From: Vandana Kannan <vandana268@gmail.com>
+Date: Thu, 31 Jan 2019 22:26:57 -0800
+Subject: [PATCH 07/11] Revert arg changes
+
+---
+ src/operator/nn/upsampling-inl.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/operator/nn/upsampling-inl.h b/src/operator/nn/upsampling-inl.h
+index 59575c19e..ac8ce2991 100644
+--- a/src/operator/nn/upsampling-inl.h
++++ b/src/operator/nn/upsampling-inl.h
+@@ -67,11 +67,6 @@ struct UpSamplingParam : public dmlc::Parameter<UpSamplingParam> {
+     .add_enum("nearest", up_enum::kNearest)
+     .add_enum("bilinear", up_enum::kBilinear)
+     .describe("upsampling method");
+-    DMLC_DECLARE_FIELD(num_args).set_default(1)
+-    .describe("Number of inputs to be upsampled. For nearest neighbor "
+-    "upsampling, this can be 1-N; the size of output will be"
+-    "(scale*h_0,scale*w_0) and all other inputs will be upsampled to the"
+-    "same size. For bilinear upsampling this must be 2; 1 input and 1 weight.");
+     DMLC_DECLARE_FIELD(multi_input_mode)
+     .add_enum("concat", up_enum::kConcat)
+     .add_enum("sum", up_enum::kSum)
+@@ -79,6 +74,11 @@ struct UpSamplingParam : public dmlc::Parameter<UpSamplingParam> {
+     .describe("How to handle multiple input. concat means concatenate upsampled "
+     "images along the channel dimension. sum means add all images together, "
+     "only available for nearest neighbor upsampling.");
++    DMLC_DECLARE_FIELD(num_args).set_lower_bound(1)
++    .describe("Number of inputs to be upsampled. For nearest neighbor "
++    "upsampling, this can be 1-N; the size of output will be"
++    "(scale*h_0,scale*w_0) and all other inputs will be upsampled to the"
++    "same size. For bilinear upsampling this must be 2; 1 input and 1 weight.");
+     DMLC_DECLARE_FIELD(workspace).set_default(512).set_range(0, 8192)
+     .describe("Tmp workspace for deconvolution (MB)");
+   }
+-- 
+2.20.1 (Apple Git-117)
+

@@ -1,0 +1,31 @@
+From 44b315e27dd4c25dc89ca03c84121ef3e93d0b3b Mon Sep 17 00:00:00 2001
+From: Vandana Kannan <vandana268@gmail.com>
+Date: Thu, 14 Feb 2019 15:03:46 -0800
+Subject: [PATCH 11/11] Uncomment shape checks
+
+---
+ src/operator/nn/upsampling.cc | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/operator/nn/upsampling.cc b/src/operator/nn/upsampling.cc
+index 9e99416f2..7b59e9f69 100644
+--- a/src/operator/nn/upsampling.cc
++++ b/src/operator/nn/upsampling.cc
+@@ -56,10 +56,10 @@ static bool UpSamplingShape(const nnvm::NodeAttrs& attrs,
+       CHECK_EQ(shape.ndim(), 4U) << \
+         "UpSamplingNearest: Input data should be 4D in (batch, channel, y, x)";
+       int oh = dshape[2]*scale_h, ow = dshape[3]*scale_w;
+-      // CHECK_EQ(oh%shape[2], 0U) << "UpSamplingNearest: input height of " << shape[2] << \
+-      //   "does not divide output height of " << oh;
+-      // CHECK_EQ(ow%shape[3], 0U) << "UpSamplingNearest: input width of " << shape[3] << \
+-      //   "does not divide output width of " << ow;
++      CHECK_EQ(oh%shape[2], 0U) << "UpSamplingNearest: input height of " << shape[2] << \
++        "does not divide output height of " << oh;
++      CHECK_EQ(ow%shape[3], 0U) << "UpSamplingNearest: input width of " << shape[3] << \
++        "does not divide output width of " << ow;
+       if (param_.multi_input_mode == up_enum::kSum) {
+         CHECK(oshape[1] == 0 || oshape[1] == shape[1]) << \
+                          "Number of channels must be the same when multi_input_mode==sum";
+-- 
+2.20.1 (Apple Git-117)
+
