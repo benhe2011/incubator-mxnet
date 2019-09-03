@@ -2047,3 +2047,85 @@ def convert_broadcast_to(node, **kwargs):
     )
 
     return [tensor_node, expand_node]
+
+
+@mx_op.register("RNN")
+def convert_lstm(node, **kwargs):
+    """Map MXNet's RNN(LSTM) operator attributes to onnx's LSTM operator
+    and return the created node.
+    """
+    name, input_nodes, attrs = get_inputs(node, kwargs)
+    """
+    sample_type = attrs.get('sample_type', 'nearest')
+    sample_type = 'linear' if sample_type == 'bilinear' else sample_type
+    scale = convert_string_to_list(attrs.get('scale'))
+    scaleh = scalew = float(scale[0])
+    if len(scale) > 1:
+        scaleh = float(scale[0])
+        scalew = float(scale[1])
+    scale = [1.0, 1.0, scaleh, scalew]
+
+    node = onnx.helper.make_node(
+        'LSTM',
+        input_nodes,
+        [name],
+        scales=scale,
+        mode=sample_type,
+        name=name
+    )
+    """
+    #getting all the parameter values from mxnet rnn(lstm)
+    num_layers = int(attrs.get('num_layers')) #req int should equal 1 
+    is_bidirection = attrs.get('bidirection') #opt bool of direction
+    hidden_size = int(attrs.get('state_size')) #req int (?)is state size in mxnet same as number of neurons in hidden layer for onnx?
+    clip_min = attrs.get('lstm_state_clip_min') #opt double minimum clip value
+    clip_max = attrs.get('lstm_state_clip_max') #opt double maximum clip value
+    """
+    initial_h = input_nodes.get('state') #req tensor initial hidden state
+    initial_c = input_nodes.get('state_cell') # req tensor initial cell state of LSTM
+    all_train_params = input_nodes.get('parameters') #req vector of all weights and biases
+    """
+    #just to test to see if my other things work properly
+    x_np = np.array((300, 20, 800), dtype='float32')
+    w_np = np.array((1, 3200, 800), dtype='float32')
+    b_np = np.array((1, 6400), dtype='float32')
+    r_np = np.array((1, 3200, 800), dtype='float32')
+    init_np = np.array((1, 20, 800), dtype='float32')
+
+    data_typew = onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[w_np.dtype]
+    data_typeb = onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[b_np.dtype]
+    data_typer = onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[r_np.dtype]
+
+    W = onnx.helper.make_tensor_value_info('W', data_typew, (1, 3200, 800))
+    B = onnx.helper.make_tensor_value_info('B', data_typeb, (1, 6400))
+    R = onnx.helper.make_tensor_value_info('R', data_typer, (1, 3200, 800))
+
+    use_seq_len = attrs.get('use_sequence_length') #opt bool
+    sequence_lens = attrs.get('sequence_length') #opt vector only if use_seq_len is true
+
+    #errors and converting mxnet parameters to fit onnx lstm operator
+    if float(num_layers) > 1:
+        raise AttributeError("ONNX currently supports single layer LSTM only")
+    direction = "bidirectional" if is_bidirection else "forward"
+    if clip_min != None and clip_max != None:
+        clip = min(abs(float(clip_min)),abs(float(clip_max)))
+        
+        node = onnx.helper.make_node(
+            'LSTM', #name
+            ['x', 'W', 'R', 'B','state', 'state_cell'], #inputs
+            [name], #outputs
+            clip=clip, #attributes
+            direction=direction,
+            hidden_size=hidden_size
+        )
+    else:
+        node = onnx.helper.make_node(
+            'LSTM', #name
+            ['x', 'W', 'R', 'B','state', 'state_cell'], #inputs
+            [name], #outputs
+            direction=direction,
+            hidden_size=hidden_size
+        )
+
+    return [W, R, B, node]
+    
