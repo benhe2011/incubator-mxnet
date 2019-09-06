@@ -2085,9 +2085,16 @@ def convert_lstm(node, **kwargs):
     initial_c = input_nodes.get('state_cell') # req tensor initial cell state of LSTM
     all_train_params = input_nodes.get('parameters') #req vector of all weights and biases
     """
+    shapes = kwargs.get('in_shape')
+    input_size = shapes[0][2]
+    
+    proc_nodes = kwargs.get('proc_nodes')
+    params = proc_nodes[1]
+
     #just to test to see if my other things work properly
     x_np = np.array((300, 20, 800), dtype='float32')
     w_np = np.array((1, 3200, 800), dtype='float32')
+
     b_np = np.array((1, 6400), dtype='float32')
     r_np = np.array((1, 3200, 800), dtype='float32')
     init_np = np.array((1, 20, 800), dtype='float32')
@@ -2099,6 +2106,7 @@ def convert_lstm(node, **kwargs):
     W = onnx.helper.make_tensor_value_info('W', data_typew, (1, 3200, 800))
     B = onnx.helper.make_tensor_value_info('B', data_typeb, (1, 6400))
     R = onnx.helper.make_tensor_value_info('R', data_typer, (1, 3200, 800))
+    
 
     use_seq_len = attrs.get('use_sequence_length') #opt bool
     sequence_lens = attrs.get('sequence_length') #opt vector only if use_seq_len is true
