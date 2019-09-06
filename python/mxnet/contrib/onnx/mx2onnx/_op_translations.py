@@ -2055,36 +2055,13 @@ def convert_lstm(node, **kwargs):
     and return the created node.
     """
     name, input_nodes, attrs = get_inputs(node, kwargs)
-    """
-    sample_type = attrs.get('sample_type', 'nearest')
-    sample_type = 'linear' if sample_type == 'bilinear' else sample_type
-    scale = convert_string_to_list(attrs.get('scale'))
-    scaleh = scalew = float(scale[0])
-    if len(scale) > 1:
-        scaleh = float(scale[0])
-        scalew = float(scale[1])
-    scale = [1.0, 1.0, scaleh, scalew]
-
-    node = onnx.helper.make_node(
-        'LSTM',
-        input_nodes,
-        [name],
-        scales=scale,
-        mode=sample_type,
-        name=name
-    )
-    """
     #getting all the parameter values from mxnet rnn(lstm)
     num_layers = int(attrs.get('num_layers')) #req int should equal 1 
     is_bidirection = attrs.get('bidirection') #opt bool of direction
     hidden_size = int(attrs.get('state_size')) #req int (?)is state size in mxnet same as number of neurons in hidden layer for onnx?
     clip_min = attrs.get('lstm_state_clip_min') #opt double minimum clip value
     clip_max = attrs.get('lstm_state_clip_max') #opt double maximum clip value
-    """
-    initial_h = input_nodes.get('state') #req tensor initial hidden state
-    initial_c = input_nodes.get('state_cell') # req tensor initial cell state of LSTM
-    all_train_params = input_nodes.get('parameters') #req vector of all weights and biases
-    """
+    
     shapes = kwargs.get('in_shape')
     input_size = shapes[0][2]
     
